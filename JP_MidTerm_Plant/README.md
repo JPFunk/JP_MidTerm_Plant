@@ -1,6 +1,6 @@
 # JP_MidTerm_Plant
 Project created 02/22/2024
-IoT Boot Camp 2nd Mid Term Project
+IoT Boot Camp 2nd Mid Term Project Smart Plant watering and environemental system "Space Biosphere"
 
 Table of contents:
 1. Project directives/goals.
@@ -26,8 +26,8 @@ Devices:
 7. SEEED Dust/Particle and Air Quality Sensor
 8. Water Pump
 Materials:
-1. 3D Printed Flower Pot
-2. Custom built Flower Pot Stand, Basin and Trellis
+1. 3D Printed Flower Pot & Stand, Terrarium base, pipe connectors for watering system.
+2. Custom built acrylic "Space Biosphere" Flower Pot water basin, breadboard/electronic case and Terrarium case.
 
 JP_MidTerm_Plant.cpp
 

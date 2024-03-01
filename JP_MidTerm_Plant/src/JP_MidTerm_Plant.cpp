@@ -21,6 +21,7 @@
 #include "IoTTimer.h"
 #include "IoTClassroom_CNM.h"
 #include "math.h"
+#include "JPBitmap.h"
 // Capacaitive Soil Sensor
 const int SOILSENSOR =A5;
 int soilVal; // common usage soil value
@@ -31,6 +32,8 @@ void pumpOn (int waterPumpPin);
 const int PUMPDELAY = (1000);
 // LED for Dashboard Button will be used for Plant water pump
 const int LEDPIN = D7; // sharing LED pin with Pump
+// Water Pump
+const int PUMPIN = D6;
 unsigned int last, lastTime;
 float  pubValue;
 int subValue;
@@ -54,7 +57,7 @@ float ratio =0, concentration =0;
 const int AQS_PIN (A2);
 AirQualitySensor aqSensor(AQS_PIN);
 String getAirQuality ();
-
+// Adafruit OLED Display
 Adafruit_SSD1306 display(OLED_RESET);
 // Adafruit_BME280 bme code
 Adafruit_BME280 bme;
@@ -108,7 +111,7 @@ sensorTimer.startTimer (60000);
 pinMode(BUTTONPIN, INPUT);
 // LED and Pump
 pinMode (LEDPIN, OUTPUT);
-//Soil value
+pinMode (PUMPIN, OUTPUT);
 //soilVal = wetVal;
 soilVal = dryVal;
 // Particle Time  
@@ -118,12 +121,23 @@ pinMode(SOILSENSOR, INPUT); // Soil Sensor
 display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // OLED Functions
 display.display();
 delay(2000);
-rot = 1;
+// JP <3 IOT bitmap display
+display.clearDisplay();
+display.drawBitmap (0, 0, jpBitmap, 128, 64, WHITE);
+display.display();
+delay(2000);
+// Invert Display
+display.invertDisplay(true);
+delay(1000);
+display.invertDisplay(false);
+delay(1000);
+rot = 1; // OLED Display Rotation for Vertical viewing.
 display.clearDisplay();
 display.setRotation(rot);
 display.setTextSize(1);
 display.setTextColor(WHITE);
 display.setCursor(0,0);
+
 // Dust Sensor
 pinMode(DUST_SENSOR_PIN, INPUT);
 lastInterval = millis();
@@ -148,15 +162,13 @@ MQTT_connect();
 MQTT_ping();
 
 // OLED display functions with Time and Soil Sensor readings
-
   DateTime =Time.timeStr(); // Current Date and Time from Particle Time class
   TimeOnly =DateTime.substring (11,19); // Extract the Time from the DateTime String
   Serial.printf("Date and time is %s\n",DateTime.c_str());
   Serial.printf("Time is %s\n",TimeOnly.c_str());
-  //delay(10000);
-  //display.printf("Date, Time\n %s\n",DateTime.c_str());
+
   soilVal =analogRead(SOILSENSOR);
-  if  (millis() > startime + delayTime) {
+  //if  (millis() > startime + delayTime) {
     rot = 3;
     display.clearDisplay(); // Date Time functions
     display.setRotation(rot);
@@ -169,16 +181,15 @@ MQTT_ping();
     display.printlnf("\nCncntrtion%f pcs/L", concentration);
     display.display();
     startime = millis();
-  //delay(6000);
-  }
+    delay(6000);
+  //}
  // BME functions with OLED display
   tempC = bme.readTemperature();
   tempF = map (tempC,0.0,100.0,32.0,212.0);
   pressPA = bme.readPressure();
   inHG = pressPA / 3386.0;
   humidRH = bme.readHumidity();
-
-  if  (millis() >= startime + 10000) {  //(millis() > startime + delayTime)
+  //if  (millis() >= startime + 10000) {  //(millis() > startime + delayTime)
     rot = 3;
     display.clearDisplay();
     display.setRotation(rot);
@@ -189,41 +200,43 @@ MQTT_ping();
     display.printf("\nHumidity\n%0.2f\n", humidRH);
     display.display();
     startime = millis();
-  }
+    delay(6000);
+  //}
 
 // Adafruit Dashboard Button for LED/Water Pump
 Adafruit_MQTT_Subscribe *subscription;
-while ((subscription = mqtt.readSubscription(100))) {
-  if (subscription == &buttonFeed) {
-    subValue = atoi((char *)buttonFeed.lastread);
-    Serial.printf("buttonFeed%i\n", subValue);
-    }
+  while ((subscription = mqtt.readSubscription(100))) {
+    if (subscription == &buttonFeed) {
+      subValue = atoi((char *)buttonFeed.lastread);
+      Serial.printf("buttonFeed%i\n", subValue);
+      }
   }
-buttonState1 = digitalRead(BUTTONPIN); //Button on Breadboard
-if (buttonState1) {
-  pumpOn (LEDPIN);
-  Serial.printf("Button is pressed \n");
-}
-  if((millis()-lastTime > 60000)) {
-    if(mqtt.Update()) {
-      soilFeed.publish(soilVal);
-      Serial.printf("soilFeed %i \n",soilVal); 
-      } 
-    lastTime = millis();
-}
+  buttonState1 = digitalRead(BUTTONPIN); //Button on Breadboard
+  if (buttonState1) {
+    pumpOn (LEDPIN);
+    Serial.printf("Button is pressed \n");
+  }
+    if((millis()-lastTime > 60000)) {
+      if(mqtt.Update()) {
+        soilFeed.publish(soilVal);
+        Serial.printf("soilFeed %i \n",soilVal); 
+        } 
+      lastTime = millis();
+  }
 // Soil Sensor Function for turning On/Off water pump
-if (waterPumpTimer.isTimerReady()) { //((millis()-waterPumpTimer)>12000) Millis code for Water pump timing not able to get working
-  soilVal = analogRead (SOILSENSOR);
-  //waterPumpTimer.startTimer (60000);
-  waterPumpTimer.startTimer (1800000);
-  ///waterPumpTimer= millis(); // 1800000 millis for 30 minutes
-}
-if ((soilVal > wetVal) || buttonState1 || subValue ) {
-  pumpOn (LEDPIN);
-  soilVal= wetVal;
-  buttonState1 = !buttonState1;
-  subValue = 0 ;
-}
+  if (waterPumpTimer.isTimerReady()) { //((millis()-waterPumpTimer)>12000) Millis code for Water pump timing not able to get working
+    soilVal = analogRead (SOILSENSOR);
+    //waterPumpTimer.startTimer (60000);
+    waterPumpTimer.startTimer (1800000);
+    ///waterPumpTimer= millis(); // 1800000 millis for 30 minutes
+  }
+  if ((soilVal > wetVal) || buttonState1 || subValue ) {
+    pumpOn (LEDPIN);
+    pumpOn (PUMPIN);
+    soilVal= wetVal;
+    buttonState1 = !buttonState1;
+    subValue = 0 ;
+  }
 
 // Adafruit MQTT Publish functions
   Adafruit_MQTT_Publish *publish;
