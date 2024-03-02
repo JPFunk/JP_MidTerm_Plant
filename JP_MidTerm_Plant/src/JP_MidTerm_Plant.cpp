@@ -1,7 +1,7 @@
 /* 
- * Project JP_MidTerm_Plant with Sensors
+ * Project JP_MidTerm_Plant project "Space BioSphere"
  * Author: JP Funk
- * Date: 02/29/2024
+ * Date: 03/2/2024
  * Empty Cup Value: 3542
  * Submerged H2O Value: 1703
  * Dry Soil Value: 3571
@@ -21,7 +21,7 @@
 #include "IoTTimer.h"
 #include "IoTClassroom_CNM.h"
 #include "math.h"
-#include "JPBitmap.h"
+#include "SpaceBioSphere.h"
 // Capacaitive Soil Sensor
 const int SOILSENSOR =A5;
 int soilVal; // common usage soil value
@@ -45,8 +45,10 @@ const int OLED_RESET=-1;
 int rot;
 // Millis
 //int  waterPumpTimer;
-IoTTimer waterPumpTimer;
-IoTTimer sensorTimer;
+IoTTimer startPumpTimer;
+IoTTimer startSensorTimer;
+IoTTimer startValueTimer;
+IoTTimer startBMETimer;
 int timerTime;
 // Dust Sensor
 const int DUST_SENSOR_PIN (D4);
@@ -104,9 +106,11 @@ Serial.printf("\n\n");
 // Setup MQTT subscription
 mqtt.subscribe(&buttonFeed);
 // Millis Timer set up
-waterPumpTimer.startTimer (60000);
+startPumpTimer.startTimer (600000);
 //waterPumpTimer = millis();
-sensorTimer.startTimer (60000); 
+startSensorTimer.startTimer (6000); 
+startValueTimer.startTimer (6000);
+startBMETimer.startTimer (6000);
 // Button
 pinMode(BUTTONPIN, INPUT);
 // LED and Pump
@@ -121,17 +125,39 @@ pinMode(SOILSENSOR, INPUT); // Soil Sensor
 display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // OLED Functions
 display.display();
 delay(2000);
-// JP <3 IOT bitmap display
-display.clearDisplay();
-display.drawBitmap (0, 0, jpBitmap, 128, 64, WHITE);
-display.display();
-delay(2000);
-// Invert Display
-display.invertDisplay(true);
-delay(1000);
-display.invertDisplay(false);
-delay(1000);
-rot = 1; // OLED Display Rotation for Vertical viewing.
+// Space BioSphere Animated BMP startup Screen Sequence
+rot = 2;
+display.setRotation(rot);
+ display.clearDisplay();
+ display.drawBitmap (0, 0, SpaceBioSphere6, 128, 64, WHITE); 
+ display.display();
+ delay(10);
+ display.clearDisplay();
+ display.drawBitmap (0, 0, SpaceBioSphere5, 128, 64, WHITE); 
+ display.display();
+ delay(10);
+ display.clearDisplay();
+ display.drawBitmap (0, 0, SpaceBioSphere4, 128, 64, WHITE); 
+ display.display();
+ delay(10);
+ display.clearDisplay();
+ display.drawBitmap (0, 0, SpaceBioSphere3, 128, 64, WHITE); 
+ display.display();
+ delay(10);
+ display.clearDisplay();
+ display.drawBitmap (0, 0, SpaceBioSphere2, 128, 64, WHITE); 
+ display.display();
+ delay(10);
+ display.clearDisplay();
+ display.drawBitmap (0, 0, SpaceBioSphere, 128, 64, WHITE);
+ display.display();
+ delay(2000);
+ // Invert Display
+ display.invertDisplay(true);
+ delay(1000);
+ display.invertDisplay(false);
+ delay(1000);
+rot = 3; // OLED Display Rotation for Vertical viewing.
 display.clearDisplay();
 display.setRotation(rot);
 display.setTextSize(1);
@@ -169,6 +195,7 @@ MQTT_ping();
 
   soilVal =analogRead(SOILSENSOR);
   //if  (millis() > startime + delayTime) {
+    if (startValueTimer.isTimerReady()) {
     rot = 3;
     display.clearDisplay(); // Date Time functions
     display.setRotation(rot);
@@ -180,8 +207,10 @@ MQTT_ping();
     display.printlnf("\nRatio: %f%%", ratio);
     display.printlnf("\nCncntrtion%f pcs/L", concentration);
     display.display();
-    startime = millis();
-    delay(6000);
+    startValueTimer.startTimer (6000);
+    //startime = millis();
+    }
+    //delay(6000);
   //}
  // BME functions with OLED display
   tempC = bme.readTemperature();
@@ -189,7 +218,7 @@ MQTT_ping();
   pressPA = bme.readPressure();
   inHG = pressPA / 3386.0;
   humidRH = bme.readHumidity();
-  //if  (millis() >= startime + 10000) {  //(millis() > startime + delayTime)
+  if  (startBMETimer.isTimerReady()) {  //(millis() > startime + delayTime)
     rot = 3;
     display.clearDisplay();
     display.setRotation(rot);
@@ -199,9 +228,10 @@ MQTT_ping();
     display.printf("\nPressure\n%0.2f\n", pressPA);
     display.printf("\nHumidity\n%0.2f\n", humidRH);
     display.display();
-    startime = millis();
-    delay(6000);
-  //}
+    startBMETimer.startTimer (6000);
+    // startime = millis();
+    // delay(6000);
+   }
 
 // Adafruit Dashboard Button for LED/Water Pump
 Adafruit_MQTT_Subscribe *subscription;
@@ -224,16 +254,21 @@ Adafruit_MQTT_Subscribe *subscription;
       lastTime = millis();
   }
 // Soil Sensor Function for turning On/Off water pump
-  if (waterPumpTimer.isTimerReady()) { //((millis()-waterPumpTimer)>12000) Millis code for Water pump timing not able to get working
+  if (startPumpTimer.isTimerReady()) {
     soilVal = analogRead (SOILSENSOR);
-    //waterPumpTimer.startTimer (60000);
-    waterPumpTimer.startTimer (1800000);
-    ///waterPumpTimer= millis(); // 1800000 millis for 30 minutes
+
+      if ((soilVal > wetVal)) {
+        pumpOn (LEDPIN);
+        pumpOn (PUMPIN);
+        soilVal= wetVal;
+      }
+    startPumpTimer.startTimer (600000);
+    //startPumpTimer.startTimer (1800000);
   }
-  if ((soilVal > wetVal) || buttonState1 || subValue ) {
+
+  if (buttonState1 || subValue ) {  // ((soilVal > wetVal) || buttonState1 || subValue ) w/ soilVal= wetVal;
     pumpOn (LEDPIN);
     pumpOn (PUMPIN);
-    soilVal= wetVal;
     buttonState1 = !buttonState1;
     subValue = 0 ;
   }
@@ -325,4 +360,5 @@ void pumpOn (int waterPumpPin) { // Water Pump OnOff function with serial print 
   delay (PUMPDELAY);
   digitalWrite(waterPumpPin, LOW);
   display.display();
+  display.clearDisplay();
 }
