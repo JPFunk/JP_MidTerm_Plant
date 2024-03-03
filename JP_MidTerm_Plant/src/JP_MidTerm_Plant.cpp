@@ -107,7 +107,6 @@ Serial.printf("\n\n");
 mqtt.subscribe(&buttonFeed);
 // Millis Timer set up
 startPumpTimer.startTimer (600000);
-//waterPumpTimer = millis();
 startSensorTimer.startTimer (6000); 
 startValueTimer.startTimer (6000);
 startBMETimer.startTimer (6000);
@@ -156,7 +155,8 @@ display.setRotation(rot);
  display.invertDisplay(true);
  delay(1000);
  display.invertDisplay(false);
- delay(1000);
+ delay(1000); // End Space BioSphere Animated BMP startup Screen Sequence
+
 rot = 3; // OLED Display Rotation for Vertical viewing.
 display.clearDisplay();
 display.setRotation(rot);
@@ -256,7 +256,6 @@ Adafruit_MQTT_Subscribe *subscription;
 // Soil Sensor Function for turning On/Off water pump
   if (startPumpTimer.isTimerReady()) {
     soilVal = analogRead (SOILSENSOR);
-
       if ((soilVal > wetVal)) {
         pumpOn (LEDPIN);
         pumpOn (PUMPIN);
@@ -265,7 +264,6 @@ Adafruit_MQTT_Subscribe *subscription;
     startPumpTimer.startTimer (600000);
     //startPumpTimer.startTimer (1800000);
   }
-
   if (buttonState1 || subValue ) {  // ((soilVal > wetVal) || buttonState1 || subValue ) w/ soilVal= wetVal;
     pumpOn (LEDPIN);
     pumpOn (PUMPIN);
@@ -360,5 +358,6 @@ void pumpOn (int waterPumpPin) { // Water Pump OnOff function with serial print 
   delay (PUMPDELAY);
   digitalWrite(waterPumpPin, LOW);
   display.display();
+  delay (5000);
   display.clearDisplay();
 }
