@@ -1,7 +1,7 @@
 /* 
  * Project JP_MidTerm_Plant project "Space BioSphere"
  * Author: JP Funk
- * Date: 03/2/2024
+ * Date: 03/4/2024
  * Empty Cup Value: 3542
  * Submerged H2O Value: 1703
  * Dry Soil Value: 3571
@@ -22,6 +22,7 @@
 #include "IoTClassroom_CNM.h"
 #include "math.h"
 #include "SpaceBioSphere.h"
+const int LEDPIN = D7; // sharing LED pin with Pump
 // Capacaitive Soil Sensor
 const int SOILSENSOR =A5;
 int soilVal; // common usage soil value
@@ -30,9 +31,6 @@ int wetVal = 1700; // wet soil value
 // Water Pump
 void pumpOn (int waterPumpPin);
 const int PUMPDELAY = (1000);
-// LED for Dashboard Button will be used for Plant water pump
-const int LEDPIN = D7; // sharing LED pin with Pump
-// Water Pump
 const int PUMPIN = D6;
 unsigned int last, lastTime;
 float  pubValue;
@@ -43,15 +41,15 @@ bool buttonState1;
 // OLED
 const int OLED_RESET=-1;
 int rot;
-// Millis
-//int  waterPumpTimer;
-IoTTimer startPumpTimer;
-IoTTimer startSensorTimer;
-IoTTimer startValueTimer;
-IoTTimer startBMETimer;
+int displayMode;
+// IoT Timers
+IoTTimer pumpTimer;
+IoTTimer displayTimer;
 int timerTime;
+int updateTime;
 // Dust Sensor
-const int DUST_SENSOR_PIN (D4);
+//const int DUST_SENSOR_PIN (D4);
+const int DUSTPIN (D4);
 const int SENSOR_READING_INTERVAL =30000;
 int lastInterval, lowpulseOccupancy =0, last_lpo =0, duration;
 float ratio =0, concentration =0;
@@ -85,6 +83,7 @@ Adafruit_MQTT_Subscribe buttonFeed = Adafruit_MQTT_Subscribe(&mqtt,AIO_USERNAME"
 void MQTT_connect();
 bool MQTT_ping();
 // Let Device OS manage the connection to the Particle Cloud
+void getConc (); 
 SYSTEM_MODE(AUTOMATIC);
 SYSTEM_THREAD(ENABLED);
 // Show system, cloud connectivity, and application logs over USB
@@ -95,6 +94,8 @@ SerialLogHandler logHandler(LOG_LEVEL_INFO);
 void setup() {
   // Put initialization like pinMode and begin functions here
 Serial.begin(9600);
+new Thread ("concThread",getConc); // Initiate Concentraion thread
+
 waitFor(Serial.isConnected,10000);
  // Connect to Internet but not Particle Cloud
 WiFi.on();
@@ -106,18 +107,16 @@ Serial.printf("\n\n");
 // Setup MQTT subscription
 mqtt.subscribe(&buttonFeed);
 // Millis Timer set up
-startPumpTimer.startTimer (600000);
-startSensorTimer.startTimer (6000); 
-startValueTimer.startTimer (6000);
-startBMETimer.startTimer (6000);
+pumpTimer.startTimer (600000);
+displayTimer.startTimer (6000);
 // Button
 pinMode(BUTTONPIN, INPUT);
 // LED and Pump
 pinMode (LEDPIN, OUTPUT);
 pinMode (PUMPIN, OUTPUT);
-//soilVal = wetVal;
 soilVal = dryVal;
-// Particle Time  
+// Particle Time
+Particle.connect;  
 Time.zone (-7); // MST = -7, MDT = -6
 Particle.syncTime (); // Sync time with Particle Cloud
 pinMode(SOILSENSOR, INPUT); // Soil Sensor
@@ -165,7 +164,7 @@ display.setTextColor(WHITE);
 display.setCursor(0,0);
 
 // Dust Sensor
-pinMode(DUST_SENSOR_PIN, INPUT);
+pinMode(DUSTPIN, INPUT);
 lastInterval = millis();
 //void getDustSensorReadings(float ratio, float concentration);
 // Air Quality Sensor
@@ -186,52 +185,18 @@ if (aqSensor.init()) {
 void loop() {
 MQTT_connect();
 MQTT_ping();
-
-// OLED display functions with Time and Soil Sensor readings
   DateTime =Time.timeStr(); // Current Date and Time from Particle Time class
   TimeOnly =DateTime.substring (11,19); // Extract the Time from the DateTime String
   Serial.printf("Date and time is %s\n",DateTime.c_str());
   Serial.printf("Time is %s\n",TimeOnly.c_str());
-
-  soilVal =analogRead(SOILSENSOR);
-  //if  (millis() > startime + delayTime) {
-    if (startValueTimer.isTimerReady()) {
-    rot = 3;
-    display.clearDisplay(); // Date Time functions
-    display.setRotation(rot);
-    display.setCursor(0,0);
-    Serial.printf("SoilSensor%i\n",soilVal);
-    display.printf("Time:\n%s\n",TimeOnly.c_str());
-    display.printf("\nSoilSensor%i\n",soilVal);
-    display.printf("\nLPO:%d\n", lowpulseOccupancy);
-    display.printlnf("\nRatio: %f%%", ratio);
-    display.printlnf("\nCncntrtion%f pcs/L", concentration);
-    display.display();
-    startValueTimer.startTimer (6000);
-    //startime = millis();
-    }
-    //delay(6000);
-  //}
- // BME functions with OLED display
+  // BME functions with OLED display
   tempC = bme.readTemperature();
   tempF = map (tempC,0.0,100.0,32.0,212.0);
   pressPA = bme.readPressure();
   inHG = pressPA / 3386.0;
   humidRH = bme.readHumidity();
-  if  (startBMETimer.isTimerReady()) {  //(millis() > startime + delayTime)
-    rot = 3;
-    display.clearDisplay();
-    display.setRotation(rot);
-    display.setCursor(0,0);
-    display.printf("Temp F\n%0.2f\n", tempF);
-    //display.printf("Temp %0.2f\n", tempC);
-    display.printf("\nPressure\n%0.2f\n", pressPA);
-    display.printf("\nHumidity\n%0.2f\n", humidRH);
-    display.display();
-    startBMETimer.startTimer (6000);
-    // startime = millis();
-    // delay(6000);
-   }
+// SEEED Capacitance Soil Sensor
+  soilVal =analogRead(SOILSENSOR);
 
 // Adafruit Dashboard Button for LED/Water Pump
 Adafruit_MQTT_Subscribe *subscription;
@@ -254,14 +219,14 @@ Adafruit_MQTT_Subscribe *subscription;
       lastTime = millis();
   }
 // Soil Sensor Function for turning On/Off water pump
-  if (startPumpTimer.isTimerReady()) {
+  if (pumpTimer.isTimerReady()) {
     soilVal = analogRead (SOILSENSOR);
       if ((soilVal > wetVal)) {
         pumpOn (LEDPIN);
         pumpOn (PUMPIN);
         soilVal= wetVal;
       }
-    startPumpTimer.startTimer (600000);
+    pumpTimer.startTimer (600000);
     //startPumpTimer.startTimer (1800000);
   }
   if (buttonState1 || subValue ) {  // ((soilVal > wetVal) || buttonState1 || subValue ) w/ soilVal= wetVal;
@@ -271,14 +236,16 @@ Adafruit_MQTT_Subscribe *subscription;
     subValue = 0 ;
   }
 
+if (( millis () - lastTime ) > updateTime ) {
+Serial . printf (" Time : %0.2f, CONC : %0.2 f\n", millis () /1000.0 , concentration ) ;
+lastTime = millis () ;
+}
+
 // Adafruit MQTT Publish functions
   Adafruit_MQTT_Publish *publish;
   // Dust Sensor readings and Display
-  duration = pulseIn(DUST_SENSOR_PIN, LOW);
-  lowpulseOccupancy =lowpulseOccupancy+duration;
   String quality = getAirQuality();  //Air Quality  
   if ((millis()-lastInterval)>SENSOR_READING_INTERVAL) { 
-    //getDustSensorReadings();
     ratio = lowpulseOccupancy /(SENSOR_READING_INTERVAL*10.0);
     concentration = 1.1 *pow(ratio,3) -3.8 * pow(ratio,2) +520 *ratio +0.62;
     Serial.printlnf("LPO: %d", lowpulseOccupancy);
@@ -292,12 +259,41 @@ Adafruit_MQTT_Subscribe *subscription;
       qualityFeed.publish(quality);
       //soilFeed.publish(val);
       tempFeed.publish(tempF);
-      pressFeed.publish(pressPA);
+      pressFeed.publish(inHG);
       humidFeed.publish(humidRH);
       }
       Serial.printlnf("Air Quality: %s", quality.c_str());
   }
-} // End Void Loop
+  if (displayTimer.isTimerReady()) {  //(millis() > startime + delayTime)
+    displayMode ++;
+    displayTimer.startTimer (5000);
+    
+    if (displayMode %2 ==0) {
+      rot = 3;
+      display.clearDisplay();
+      display.setRotation(rot);
+      display.setCursor(0,0);
+      display.printf("Temp F\n%0.2f\n", tempF);
+      display.printf("\nTemp C\n%0.2f\n", tempC);
+      display.printf("\nPressure\n%0.2f\n", inHG);
+      display.printf("\nHumidity\n%0.2f\n", humidRH);
+      display.printlnf("\nAirQuality%s", quality.c_str());
+      display.display();
+      }
+      else {
+      rot = 3;
+      display.clearDisplay(); // Date Time functions
+      display.setRotation(rot);
+      display.setCursor(0,0);
+      display.printf("Time:\n%s\n",TimeOnly.c_str());
+      display.printf("\nSoilSensor%i\n",soilVal);
+      display.printf("\nLPO:%d\n", lowpulseOccupancy);
+      display.printlnf("\nRatio: %f%%", ratio);
+      display.printlnf("\nCncntrtion%f pcs/L", concentration);
+      display.display();
+      }
+    }
+  }  // End Void Loop
 
 // Air Quality Functions
 String getAirQuality() {
@@ -347,6 +343,7 @@ bool MQTT_ping() {
   }
   return pingStatus;
 }
+// Pump Function Code with Diplay
 void pumpOn (int waterPumpPin) { // Water Pump OnOff function with serial print values
   digitalWrite(waterPumpPin, HIGH);
   Serial.printf("Pump On%i,%i\n", pumpOn, PUMPDELAY);
@@ -358,6 +355,24 @@ void pumpOn (int waterPumpPin) { // Water Pump OnOff function with serial print 
   delay (PUMPDELAY);
   digitalWrite(waterPumpPin, LOW);
   display.display();
-  delay (5000);
+  delay (3000);
   display.clearDisplay();
+}
+// Dust Sensor Function Code
+void getConc () { // The thread
+  const int sampleTime = 30000;
+  unsigned int duration, startTime;
+  startTime = 0;
+  lowpulseOccupancy =0;
+    while ( true ) { // Run the below loop forever
+      duration = pulseIn (DUSTPIN , LOW);
+      lowpulseOccupancy = lowpulseOccupancy +duration;
+      if ((millis()-startTime) > sampleTime) { 
+        ratio = lowpulseOccupancy /(sampleTime *10.0) ;
+        concentration = 1.1* pow (ratio ,3) -3.8* pow (ratio ,2) +520* ratio +0.62;
+        Serial.printf("Concentration %i\n", concentration);
+        startTime = millis() ; 
+        lowpulseOccupancy =0;
+      }
+  }
 }
