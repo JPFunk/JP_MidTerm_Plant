@@ -273,6 +273,7 @@ lastTime = millis () ;
       display.clearDisplay();
       display.setRotation(rot);
       display.setCursor(0,0);
+       display.setTextSize(1);
       display.printf("Temp F\n%0.2f\n", tempF);
       display.printf("\nTemp C\n%0.2f\n", tempC);
       display.printf("\nPressure\n%0.2f\n", inHG);
@@ -285,6 +286,7 @@ lastTime = millis () ;
       display.clearDisplay(); // Date Time functions
       display.setRotation(rot);
       display.setCursor(0,0);
+       display.setTextSize(1);
       display.printf("Time:\n%s\n",TimeOnly.c_str());
       display.printf("\nSoilSensor%i\n",soilVal);
       display.printf("\nLPO:%d\n", lowpulseOccupancy);
@@ -351,12 +353,16 @@ void pumpOn (int waterPumpPin) { // Water Pump OnOff function with serial print 
   display.clearDisplay();
   display.setRotation(rot);
   display.setCursor(0,0);
-  display.printf("Pump On%i\n", pumpOn);
+  display.setTextSize(2);
+  display.printf(" Pump !On!", pumpOn);
+  rot = 2;
+  display.setRotation(rot);
+  display.drawBitmap (0, 0, SpaceBioSphere2, 128, 64, WHITE); 
   delay (PUMPDELAY);
   digitalWrite(waterPumpPin, LOW);
   display.display();
   delay (3000);
-  display.clearDisplay();
+ 
 }
 // Dust Sensor Function Code
 void getConc () { // The thread
