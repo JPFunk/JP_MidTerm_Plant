@@ -1,7 +1,7 @@
 /* 
  * Project JP_MidTerm_Plant project "Space BioSphere"
  * Author: JP Funk
- * Date: 03/4/2024
+ * Date: 03/7/2024 Reset code line 229 for 30 minute timer interval
  * Empty Cup Value: 3542
  * Submerged H2O Value: 1703
  * Dry Soil Value: 3571
@@ -126,35 +126,35 @@ delay(2000);
 // Space BioSphere Animated BMP startup Screen Sequence
 rot = 2;
 display.setRotation(rot);
- display.clearDisplay();
- display.drawBitmap (0, 0, SpaceBioSphere6, 128, 64, WHITE); 
- display.display();
- delay(10);
- display.clearDisplay();
- display.drawBitmap (0, 0, SpaceBioSphere5, 128, 64, WHITE); 
- display.display();
- delay(10);
- display.clearDisplay();
- display.drawBitmap (0, 0, SpaceBioSphere4, 128, 64, WHITE); 
- display.display();
- delay(10);
- display.clearDisplay();
- display.drawBitmap (0, 0, SpaceBioSphere3, 128, 64, WHITE); 
- display.display();
- delay(10);
- display.clearDisplay();
- display.drawBitmap (0, 0, SpaceBioSphere2, 128, 64, WHITE); 
- display.display();
- delay(10);
- display.clearDisplay();
- display.drawBitmap (0, 0, SpaceBioSphere, 128, 64, WHITE);
- display.display();
- delay(2000);
- // Invert Display
- display.invertDisplay(true);
- delay(1000);
- display.invertDisplay(false);
- delay(1000); // End Space BioSphere Animated BMP startup Screen Sequence
+display.clearDisplay();
+display.drawBitmap (0, 0, SpaceBioSphere6, 128, 64, WHITE); 
+display.display();
+delay(10);
+display.clearDisplay();
+display.drawBitmap (0, 0, SpaceBioSphere5, 128, 64, WHITE); 
+display.display();
+delay(10);
+display.clearDisplay();
+display.drawBitmap (0, 0, SpaceBioSphere4, 128, 64, WHITE); 
+display.display();
+delay(10);
+display.clearDisplay();
+display.drawBitmap (0, 0, SpaceBioSphere3, 128, 64, WHITE); 
+display.display();
+delay(10);
+display.clearDisplay();
+display.drawBitmap (0, 0, SpaceBioSphere2, 128, 64, WHITE); 
+display.display();
+delay(10);
+display.clearDisplay();
+display.drawBitmap (0, 0, SpaceBioSphere, 128, 64, WHITE);
+display.display();
+delay(2000);
+// Invert Display
+display.invertDisplay(true);
+delay(1000);
+display.invertDisplay(false);
+delay(1000); // End Space BioSphere Animated BMP startup Screen Sequence
 
 rot = 3; // OLED Display Rotation for Vertical viewing.
 display.clearDisplay();
@@ -226,20 +226,19 @@ Adafruit_MQTT_Subscribe *subscription;
         pumpOn (PUMPIN);
         soilVal= wetVal;
       }
-    pumpTimer.startTimer (600000);
-    //startPumpTimer.startTimer (1800000);
+    pumpTimer.startTimer (1800000); // 30 minute timer cycle
   }
-  if (buttonState1 || subValue ) {  // ((soilVal > wetVal) || buttonState1 || subValue ) w/ soilVal= wetVal;
+  if (buttonState1 || subValue ) {
     pumpOn (LEDPIN);
     pumpOn (PUMPIN);
     buttonState1 = !buttonState1;
     subValue = 0 ;
   }
 
-if (( millis () - lastTime ) > updateTime ) {
-Serial . printf (" Time : %0.2f, CONC : %0.2 f\n", millis () /1000.0 , concentration ) ;
-lastTime = millis () ;
-}
+  if (( millis () - lastTime ) > updateTime ) {
+  Serial . printf (" Time : %0.2f,CONC:%0.2f\n",millis()/1000.0,concentration);
+  lastTime = millis () ;
+  }
 
 // Adafruit MQTT Publish functions
   Adafruit_MQTT_Publish *publish;
@@ -257,7 +256,7 @@ lastTime = millis () ;
     if(mqtt.Update()) {
       concentrationFeed.publish(concentration);
       qualityFeed.publish(quality);
-      //soilFeed.publish(val);
+      soilFeed.publish(soilVal);
       tempFeed.publish(tempF);
       pressFeed.publish(inHG);
       humidFeed.publish(humidRH);
