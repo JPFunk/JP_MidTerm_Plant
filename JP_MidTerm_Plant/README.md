@@ -37,7 +37,7 @@ JP_MidTerm_Plant.cpp
 1. 4 Sensor integration inlcuding soil sensor code function loop for automatic and manual watering from Adafruit.IO web Dashboard.
 2. Sensor values dipslayed on OLED and Dashboard w/ special Pump ON inidcator and graphic denoting Water Pump activation.
 
-Hackster.IO Project page: 
+Hackster.IO Project page: Hackster page will be posted after Mid Term is Completed
 
-Video File Details:
+Video File Details: Video will be posted after Mid Term is Completed
 

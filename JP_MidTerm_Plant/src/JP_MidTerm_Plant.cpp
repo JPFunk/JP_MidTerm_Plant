@@ -272,7 +272,7 @@ Adafruit_MQTT_Subscribe *subscription;
       display.clearDisplay();
       display.setRotation(rot);
       display.setCursor(0,0);
-       display.setTextSize(1);
+      display.setTextSize(1);
       display.printf("Temp F\n%0.2f\n", tempF);
       display.printf("\nTemp C\n%0.2f\n", tempC);
       display.printf("\nPressure\n%0.2f\n", inHG);
@@ -285,7 +285,7 @@ Adafruit_MQTT_Subscribe *subscription;
       display.clearDisplay(); // Date Time functions
       display.setRotation(rot);
       display.setCursor(0,0);
-       display.setTextSize(1);
+      display.setTextSize(1);
       display.printf("Time:\n%s\n",TimeOnly.c_str());
       display.printf("\nSoilSensor%i\n",soilVal);
       display.printf("\nLPO:%d\n", lowpulseOccupancy);
